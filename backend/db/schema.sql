@@ -104,3 +104,16 @@ CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_settlements_group ON settlements(group_id);
 CREATE INDEX IF NOT EXISTS idx_import_anomalies_import ON import_anomalies(import_id);
+
+-- Import History
+CREATE TABLE IF NOT EXISTS import_history (
+  import_id VARCHAR(100) PRIMARY KEY,
+  group_id INT REFERENCES groups(id),
+  imported_by INT REFERENCES users(id),
+  total_rows INT DEFAULT 0,
+  imported_rows INT DEFAULT 0,
+  skipped_rows INT DEFAULT 0,
+  settlements_created INT DEFAULT 0,
+  edited_rows JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
