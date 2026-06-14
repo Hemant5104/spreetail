@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: spreetail-api
+    env: node
+    region: oregon
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm run db:init && npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: spreetail-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+
+databases:
+  - name: spreetail-db
+    databaseName: spreetail
+    user: spreetail_user
+    plan: free

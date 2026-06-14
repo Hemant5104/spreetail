@@ -11,7 +11,7 @@ class AnomalyDetector {
    * @param {Array} rows - Array of parsed CSV row objects (raw strings)
    * @returns {Array} anomalies - Array of { row, type, description, original, suggestedFix, severity }
    */
-  static detectAll(rows) {
+  static detectAll(rows, groupMembers = []) {
     const anomalies = [];
     const detectors = [
       this.detectDuplicateEntries,
@@ -29,14 +29,14 @@ class AnomalyDetector {
       this.detectAmountWithSpaces,
       this.detectZeroAmount,
       this.detectAmbiguousDate,
-      this.detectStaleMember,
+      this.detectInactiveMember,
       this.detectConflictingSplitType,
       this.detectNonGroupMember,
     ];
 
     for (const detector of detectors) {
       try {
-        const found = detector.call(this, rows);
+        const found = detector.call(this, rows, groupMembers);
         anomalies.push(...found);
       } catch (err) {
         console.error(`Anomaly detector error: ${err.message}`);
@@ -243,14 +243,25 @@ class AnomalyDetector {
       const d = (row.date || '').trim();
       if (!d) return;
       if (!isoPattern.test(d)) {
-        anomalies.push({
-          rows: [i + 2],
-          type: 'inconsistent_date',
-          description: `Date "${d}" is not in YYYY-MM-DD format. Parsed as "${row._parsedDate || 'UNKNOWN'}".`,
-          original: { date: d },
-          suggestedFix: { date: row._parsedDate },
-          severity: 'info',
-        });
+        if (row._parsedDate) {
+          anomalies.push({
+            rows: [i + 2],
+            type: 'inconsistent_date',
+            description: `Date "${d}" is not in YYYY-MM-DD format. Auto-fixed to "${row._parsedDate}".`,
+            original: { date: d },
+            suggestedFix: { date: row._parsedDate },
+            severity: 'auto_fixed',
+          });
+        } else {
+          anomalies.push({
+            rows: [i + 2],
+            type: 'inconsistent_date',
+            description: `Date "${d}" is not in YYYY-MM-DD format. Parsed as "${row._parsedDate || 'UNKNOWN'}".`,
+            original: { date: d },
+            suggestedFix: { date: row._parsedDate },
+            severity: 'review',
+          });
+        }
       }
     });
     return anomalies;
@@ -404,10 +415,10 @@ class AnomalyDetector {
           anomalies.push({
             rows: [i + 2],
             type: 'ambiguous_date',
-            description: `Date "${d}" is ambiguous — could be ${a}/${b} (DD/MM) or ${b}/${a} (MM/DD). ${row.notes || ''}. Parsed as DD/MM/YYYY → ${row._parsedDate}. User should verify.`,
+            description: `Date "${d}" is ambiguous — could be ${a}/${b} (DD/MM) or ${b}/${a} (MM/DD). ${row.notes || ''}. Auto-fixed to ${row._parsedDate} (DD/MM/YYYY).`,
             original: { date: d },
             suggestedFix: { date: row._parsedDate, interpretation: 'DD/MM/YYYY' },
-            severity: 'review',
+            severity: 'auto_fixed',
           });
         }
       }
@@ -416,27 +427,48 @@ class AnomalyDetector {
   }
 
   /**
-   * 16. Stale group member (person included after they left)
+   * 16. Inactive group member (person included after they left or before they joined)
    */
-  static detectStaleMember(rows) {
+  static detectInactiveMember(rows, groupMembers) {
     const anomalies = [];
-    // Meera left at end of March 2026
-    const meeraLeftDate = '2026-03-31';
+    if (!groupMembers || groupMembers.length === 0) return anomalies;
+
+    const memberMap = {};
+    groupMembers.forEach(m => {
+      memberMap[m.name.toLowerCase()] = {
+        joinedAt: m.joinedAt ? new Date(m.joinedAt).toISOString().split('T')[0] : null,
+        leftAt: m.leftAt ? new Date(m.leftAt).toISOString().split('T')[0] : null,
+      };
+    });
 
     rows.forEach((row, i) => {
       if (!row._parsedDate || !row.split_with) return;
       const members = row.split_with.split(';').map(s => s.trim().toLowerCase());
-      const hasMemera = members.includes('meera');
-      if (hasMemera && row._parsedDate > meeraLeftDate) {
-        anomalies.push({
-          rows: [i + 2],
-          type: 'stale_member',
-          description: `Meera is included in "${row.description}" (${row._parsedDate}) but left the group on ${meeraLeftDate}. User should verify.`,
-          original: { split_with: row.split_with, date: row._parsedDate },
-          suggestedFix: { action: 'remove_meera_from_split' },
-          severity: 'review',
-        });
-      }
+      
+      members.forEach(m => {
+        const info = memberMap[m];
+        if (info) {
+          if (info.leftAt && row._parsedDate > info.leftAt) {
+            anomalies.push({
+              rows: [i + 2],
+              type: 'inactive_member',
+              description: `"${m}" is included in "${row.description}" (${row._parsedDate}) but left the group on ${info.leftAt}. User should verify.`,
+              original: { split_with: row.split_with, date: row._parsedDate, member: m },
+              suggestedFix: { action: 'remove_member_from_split', member: m },
+              severity: 'review',
+            });
+          } else if (info.joinedAt && row._parsedDate < info.joinedAt) {
+             anomalies.push({
+              rows: [i + 2],
+              type: 'inactive_member',
+              description: `"${m}" is included in "${row.description}" (${row._parsedDate}) but only joined the group later on ${info.joinedAt}. User should verify.`,
+              original: { split_with: row.split_with, date: row._parsedDate, member: m },
+              suggestedFix: { action: 'remove_member_from_split', member: m },
+              severity: 'review',
+            });
+          }
+        }
+      });
     });
     return anomalies;
   }
@@ -479,10 +511,10 @@ class AnomalyDetector {
         anomalies.push({
           rows: [i + 2],
           type: 'non_group_member',
-          description: `Unknown participant(s) "${unknown.join(', ')}" in "${row.description}". Will be added as guest(s).`,
+          description: `Unknown participant(s) "${unknown.join(', ')}" in "${row.description}". Map them to a host or add as a guest.`,
           original: { split_with: row.split_with, unknown },
-          suggestedFix: { action: 'add_as_guest' },
-          severity: 'info',
+          suggestedFix: { action: 'map_to_host' },
+          severity: 'review',
         });
       }
     });

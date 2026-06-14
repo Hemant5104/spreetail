@@ -1,0 +1,28 @@
+date,description,paid_by,amount,currency,split_type,split_with,split_details,notes
+2026-05-01,May rent,Kavya,48000,INR,equal,Kavya;Arjun;Sneha;Vikram,,
+2026-05-02,Groceries BigBasket,Arjun,1980,INR,equal,Kavya;Arjun;Sneha;Vikram,,
+2026-05-04,Wifi bill May,Sneha,1199,INR,equal,Kavya;Arjun;Sneha;Vikram,,
+2026-05-06,Electricity May,Vikram,1320,INR,equal,Kavya;Arjun;Sneha;Vikram,,
+2026-05-08,Dinner at Mainland China,Kavya,4200,INR,equal,Kavya;Arjun;Sneha;Vikram,,
+05/05/2026,Cylinder refill,Arjun,900,INR,equal,Kavya;Arjun;Sneha;Vikram,,
+2026-05-10,Maid salary May,Sneha,3000,INR,equal,Kavya;Arjun;Sneha;Vikram,,
+2026-05-12,Movie night snacks,arjun,540,INR,equal,Kavya;Arjun;Sneha,,Vikram skipped
+2026-05-14,Weekend brunch,Kavya,2800,INR,percentage,Kavya;Arjun;Sneha;Vikram,Kavya 30%; Arjun 30%; Sneha 30%; Vikram 20%,percentages might be off
+2026-05-14,brunch - Sunday,Kavya,2800,INR,equal,Kavya;Arjun;Sneha;Vikram,,
+2026-05-16,House cleaning supplies,,680,INR,equal,Kavya;Arjun;Sneha;Vikram,,can't remember who paid
+2026-05-18,Arjun birthday cake,Sneha,1200,INR,unequal,Kavya;Sneha;Vikram,Kavya 400; Sneha 400; Vikram 400,Arjun not charged obviously
+2026-05-20,Arjun paid Kavya back,Arjun,6000,INR,,Kavya,,this is a settlement not an expense??
+2026-05-22,Groceries DMart,Vikram,2250,,equal,Kavya;Arjun;Sneha;Vikram,,forgot to set currency
+May 25,Airport cab,Sneha,950,INR,equal,Kavya;Arjun;Sneha;Vikram,,
+2026-05-26,Dinner order Swiggy,Kavya,0,INR,equal,Kavya;Arjun;Sneha;Vikram,,counted twice earlier - fixing later
+2026-05-28,Kerala trip flights,Kavya,28800,INR,equal,Kavya;Arjun;Sneha;Vikram,,trip starts!
+2026-05-29,Hotel booking,Arjun,320,USD,equal,Kavya;Arjun;Sneha;Vikram,,booked on intl site
+2026-05-30,Dinner at hotel,Sneha,-150,INR,equal,Kavya;Arjun;Sneha;Vikram,,refund from last trip
+07/06/2026,Deep cleaning service,Vikram,2200,INR,equal,Kavya;Arjun;Sneha,,is this June 7 or July 6? format is a mess
+2026-06-01,June rent,Kavya,48000,INR,share,Kavya;Arjun;Sneha,Kavya 2; Arjun 1; Sneha 1,Kavya took Vikram's room too
+2026-06-02,Groceries BigBasket,Sneha,2420,INR,equal,Kavya;Arjun;Sneha;Vikram,,oops Vikram still in the group list
+2026-06-04,Wifi bill Jun,Arjun,1199,INR,equal,Kavya;Arjun;Sneha,,
+2026-06-06,New flatmate deposit,Preet,15000,INR,equal,Kavya,,Preet moving in! paid Kavya deposit
+2026-06-08,Housewarming snacks,Preet,2600,INR,equal,Kavya;Arjun;Sneha;Preet,,
+2026-06-10,Furniture for common room,Kavya,9500,INR,equal,Kavya;Arjun;Sneha;Preet,Kavya 1; Arjun 1; Sneha 1; Preet 1,split_type says equal but someone added shares anyway
+2026-06-12,Maid salary Jun,Arjun,3000,INR,equal,Kavya;Arjun;Sneha;Preet,,

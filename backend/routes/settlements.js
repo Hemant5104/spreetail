@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { group_id, paid_to, amount, currency, date, notes } = req.body;
+    const { group_id, paid_by, paid_to, amount, currency, date, notes } = req.body;
 
     if (!group_id || !paid_to || !amount) {
       return res.status(400).json({ error: 'group_id, paid_to, and amount are required.' });
@@ -52,7 +52,7 @@ router.post('/', async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [
         group_id,
-        req.user.id,
+        paid_by || req.user.id,
         paid_to,
         amount,
         currency || 'INR',

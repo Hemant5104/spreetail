@@ -22,8 +22,22 @@ class CSVImporter {
     // Step 2: Pre-process each row (clean amounts, parse dates, normalize names)
     const processedRows = rawRows.map((row, i) => this.preprocessRow(row, i));
 
+    // Step 2.5: Fetch Group Members with join/leave dates
+    const memberResult = await pool.query(
+      `SELECT u.display_name, gm.joined_at, gm.left_at 
+       FROM group_members gm 
+       JOIN users u ON gm.user_id = u.id 
+       WHERE gm.group_id = $1`,
+      [groupId]
+    );
+    const groupMembers = memberResult.rows.map(r => ({
+      name: r.display_name,
+      joinedAt: r.joined_at,
+      leftAt: r.left_at
+    }));
+
     // Step 3: Run anomaly detection
-    const anomalies = AnomalyDetector.detectAll(processedRows);
+    const anomalies = AnomalyDetector.detectAll(processedRows, groupMembers);
 
     // Step 4: Store anomalies in DB
     for (const anomaly of anomalies) {
@@ -161,7 +175,7 @@ class CSVImporter {
    * Import a single expense row
    */
   static async importExpense(row, groupId, userMap, activeMembers) {
-    const payerId = userMap[row._normalizedPaidBy?.toLowerCase()];
+    const payerId = await this.getOrCreateUser(row._normalizedPaidBy, userMap);
     if (!payerId && row._normalizedPaidBy) {
       throw new Error(`Unknown payer: ${row._normalizedPaidBy}`);
     }
@@ -196,7 +210,7 @@ class CSVImporter {
     const expenseId = expResult.rows[0].id;
 
     // Calculate and insert splits
-    const splits = this.calculateSplits(row, userMap);
+    const splits = await this.calculateSplits(row, userMap);
     for (const split of splits) {
       // Auto-add split participant to group
       if (!activeMembers.has(split.userId)) {
@@ -224,14 +238,14 @@ class CSVImporter {
    * Import a settlement row
    */
   static async importSettlement(row, groupId, userMap, activeMembers) {
-    const payerId = userMap[row._normalizedPaidBy?.toLowerCase()];
+    const payerId = await this.getOrCreateUser(row._normalizedPaidBy, userMap);
     // Parse "Rohan paid Aisha back" — the recipient is in split_with
-    const members = (row.split_with || '').split(';').map(s => s.trim().toLowerCase());
-    const recipientName = members.find(m => m && m !== row._normalizedPaidBy?.toLowerCase());
-    const recipientId = recipientName ? userMap[recipientName] : null;
+    const members = (row.split_with || '').split(';').map(s => s.trim());
+    const recipientNameStr = members.find(m => m && m.toLowerCase() !== row._normalizedPaidBy?.toLowerCase());
+    const recipientId = recipientNameStr ? await this.getOrCreateUser(this.normalizeName(recipientNameStr), userMap) : null;
 
     if (!payerId || !recipientId) {
-      throw new Error(`Cannot resolve settlement parties: payer=${row._normalizedPaidBy}, recipient=${recipientName}`);
+      throw new Error(`Cannot resolve settlement parties: payer=${row._normalizedPaidBy}, recipient=${recipientNameStr}`);
     }
 
     // Auto-add both to group
@@ -264,7 +278,7 @@ class CSVImporter {
   /**
    * Calculate split amounts for an expense row
    */
-  static calculateSplits(row, userMap) {
+  static async calculateSplits(row, userMap) {
     const members = (row.split_with || '').split(';').map(s => s.trim()).filter(Boolean);
     const amount = Math.abs(row._cleanAmount);
     const splitType = row._cleanSplitType || 'equal';
@@ -274,9 +288,10 @@ class CSVImporter {
       const perPerson = Math.round((amount / members.length) * 100) / 100;
       let remainder = Math.round((amount - perPerson * members.length) * 100) / 100;
 
-      members.forEach((member, idx) => {
+      for (let idx = 0; idx < members.length; idx++) {
+        const member = members[idx];
         const normalized = this.normalizeName(member);
-        const userId = userMap[normalized.toLowerCase()];
+        const userId = await this.getOrCreateUser(normalized, userMap);
         if (userId) {
           let share = perPerson;
           if (idx === 0 && remainder !== 0) {
@@ -284,11 +299,11 @@ class CSVImporter {
           }
           splits.push({ userId, amount: share });
         }
-      });
+      }
     } else if (splitType === 'unequal') {
       const details = this.parseSplitDetails(row.split_details);
       for (const [name, value] of Object.entries(details)) {
-        const userId = userMap[name.toLowerCase()];
+        const userId = await this.getOrCreateUser(name, userMap);
         if (userId) {
           splits.push({ userId, amount: value });
         }
@@ -297,7 +312,7 @@ class CSVImporter {
       const details = this.parseSplitDetails(row.split_details);
       let totalPct = Object.values(details).reduce((s, v) => s + v, 0);
       for (const [name, pct] of Object.entries(details)) {
-        const userId = userMap[name.toLowerCase()];
+        const userId = await this.getOrCreateUser(name, userMap);
         if (userId) {
           // Normalize percentages to sum to 100 if they don't
           const normalizedPct = totalPct !== 0 ? (pct / totalPct) * 100 : 0;
@@ -309,7 +324,7 @@ class CSVImporter {
       const details = this.parseSplitDetails(row.split_details);
       const totalShares = Object.values(details).reduce((s, v) => s + v, 0);
       for (const [name, shares] of Object.entries(details)) {
-        const userId = userMap[name.toLowerCase()];
+        const userId = await this.getOrCreateUser(name, userMap);
         if (userId && totalShares > 0) {
           const share = Math.round((amount * shares / totalShares) * 100) / 100;
           splits.push({ userId, amount: share });
@@ -387,10 +402,10 @@ class CSVImporter {
     const isoMatch = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (isoMatch) return d;
 
-    // DD/MM/YYYY (default interpretation for ambiguous dates)
-    const slashMatch = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (slashMatch) {
-      const [, day, month, year] = slashMatch;
+    // DD/MM/YYYY or DD-MM-YYYY (default interpretation for ambiguous dates)
+    const euMatch = d.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+    if (euMatch) {
+      const [, day, month, year] = euMatch;
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
 
@@ -446,6 +461,43 @@ class CSVImporter {
       map[row.display_name.toLowerCase()] = row.id;
     }
     return map;
+  }
+
+  /**
+   * Resolves a user ID by name, creating a dummy user if they don't exist
+   */
+  static async getOrCreateUser(name, userMap) {
+    if (!name) return null;
+    const lowerName = name.trim().toLowerCase();
+    if (userMap[lowerName]) return userMap[lowerName];
+
+    // Create a new shadow user
+    const username = name.replace(/\s+/g, '').toLowerCase() + '_' + Math.floor(Math.random() * 10000);
+    const email = `${username}@example.com`;
+    const password_hash = 'dummy_shadow_user_hash';
+
+    try {
+      const result = await pool.query(
+        `INSERT INTO users (username, email, password_hash, display_name)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [username, email, password_hash, name.trim()]
+      );
+
+      const newId = result.rows[0].id;
+      userMap[lowerName] = newId;
+      userMap[username.toLowerCase()] = newId;
+      
+      return newId;
+    } catch (err) {
+      console.error('Failed to auto-create user', name, err);
+      // If concurrent insert happened, fallback to fetch
+      const existing = await pool.query('SELECT id FROM users WHERE display_name ILIKE $1', [name.trim()]);
+      if (existing.rows.length > 0) {
+        userMap[lowerName] = existing.rows[0].id;
+        return existing.rows[0].id;
+      }
+      return null;
+    }
   }
 }
 

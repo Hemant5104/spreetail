@@ -69,7 +69,7 @@ router.post('/analyze', upload.single('csv'), async (req, res) => {
  */
 router.post('/commit', async (req, res) => {
   try {
-    const { import_id, group_id, resolutions, csv_path } = req.body;
+    const { import_id, group_id, resolutions, edited_rows, csv_path } = req.body;
 
     if (!import_id || !group_id) {
       return res.status(400).json({ error: 'import_id and group_id are required.' });
@@ -102,6 +102,18 @@ router.post('/commit', async (req, res) => {
     }
 
     const rawRows = CSVImporter.parseCSV(csvContent);
+
+    // Apply manual edits from the frontend
+    if (edited_rows) {
+      for (const [rowNumStr, edits] of Object.entries(edited_rows)) {
+        // rowNum is 1-indexed including header, so array index is rowNum - 2
+        const idx = parseInt(rowNumStr, 10) - 2;
+        if (rawRows[idx]) {
+          Object.assign(rawRows[idx], edits);
+        }
+      }
+    }
+
     const processedRows = rawRows.map((row, i) => CSVImporter.preprocessRow(row, i));
 
     // Get anomalies from DB for resolution info
@@ -115,6 +127,23 @@ router.post('/commit', async (req, res) => {
       parseInt(group_id),
       anomalyResult.rows,
       resolutions || {}
+    );
+
+    // Save to import_history
+    await pool.query(
+      `INSERT INTO import_history 
+       (import_id, group_id, imported_by, total_rows, imported_rows, skipped_rows, settlements_created, edited_rows)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        import_id,
+        group_id,
+        req.user.id,
+        rawRows.length,
+        importResult.imported,
+        importResult.skipped,
+        importResult.settlements,
+        edited_rows ? JSON.stringify(edited_rows) : null,
+      ]
     );
 
     res.json({
@@ -162,6 +191,33 @@ router.put('/anomalies/:id/resolve', async (req, res) => {
     res.json({ message: 'Anomaly resolved.' });
   } catch (err) {
     console.error('Resolve anomaly error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * GET /api/import/history?group_id=X
+ * Fetch the import history for a specific group
+ */
+router.get('/history', async (req, res) => {
+  try {
+    const { group_id } = req.query;
+    if (!group_id) {
+      return res.status(400).json({ error: 'group_id is required.' });
+    }
+
+    const result = await pool.query(
+      `SELECT h.*, u.display_name as importer_name
+       FROM import_history h
+       JOIN users u ON h.imported_by = u.id
+       WHERE h.group_id = $1
+       ORDER BY h.created_at DESC`,
+      [group_id]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Fetch import history error:', err);
     res.status(500).json({ error: 'Internal server error.' });
   }
 });

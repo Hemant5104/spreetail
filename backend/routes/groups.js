@@ -21,6 +21,7 @@ router.get('/', async (req, res) => {
        LEFT JOIN group_members gm ON g.id = gm.group_id AND gm.left_at IS NULL
        LEFT JOIN users creator ON g.created_by = creator.id
        WHERE g.id IN (SELECT group_id FROM group_members WHERE user_id = $1)
+          OR g.created_by = $1
        GROUP BY g.id, creator.display_name
        ORDER BY g.created_at DESC`,
       [req.user.id]
