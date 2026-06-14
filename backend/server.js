@@ -26,6 +26,11 @@ app.use('/api/settlements', require('./routes/settlements'));
 app.use('/api/balances', require('./routes/balances'));
 app.use('/api/import', require('./routes/import'));
 
+// Root route to prevent "Cannot GET /" on Render URL
+app.get('/', (req, res) => {
+  res.send('🚀 ClearShare API is running successfully! Proceed to Step 3 in your walkthrough to deploy the frontend UI.');
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
