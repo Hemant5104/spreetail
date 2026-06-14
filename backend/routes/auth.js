@@ -40,7 +40,7 @@ router.post('/register', async (req, res) => {
     const user = result.rows[0];
     const token = jwt.sign(
       { id: user.id, username: user.username, display_name: user.display_name },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'fallback_secret_for_free_deployments_only',
       { expiresIn: '7d' }
     );
 
@@ -80,7 +80,7 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, username: user.username, display_name: user.display_name },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'fallback_secret_for_free_deployments_only',
       { expiresIn: '7d' }
     );
 
