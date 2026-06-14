@@ -146,7 +146,8 @@ class CSVImporter {
     const activeMembers = new Set(membersResult.rows.map(r => r.user_id));
 
     for (let i = 0; i < processedRows.length; i++) {
-      if (skipRows.has(i)) {
+      const csvRowNumber = i + 2;
+      if (skipRows.has(i) || (resolutions[csvRowNumber] && resolutions[csvRowNumber]._deleted)) {
         results.skipped++;
         continue;
       }
