@@ -1,5 +1,5 @@
 {
-  "name": "spreetail-expenses-backend",
+  "name": "clearshare-expenses-backend",
   "version": "1.0.0",
   "description": "Shared Expenses App - Backend API",
   "main": "server.js",

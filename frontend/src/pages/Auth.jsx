@@ -64,8 +64,10 @@ const Auth = () => {
               </linearGradient>
             </defs>
           </svg>
-          <h1>Spreetail</h1>
-          <p>Split expenses, not friendships</p>
+          <div className="text-center mb-8">
+          <h1>ClearShare</h1>
+          <p className="text-gray-500 mt-2">Split expenses with friends, seamlessly.</p>
+        </div>
         </div>
 
         <div className="tabs mb-6">

@@ -1,5 +1,5 @@
 -- ============================================
--- Spreetail Shared Expenses App — Database Schema
+-- ClearShare Shared Expenses App — Database Schema
 -- ============================================
 
 -- Users & Authentication

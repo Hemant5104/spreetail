@@ -39,7 +39,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`\n  🚀 Spreetail Expenses API running on http://localhost:${PORT}`);
+  console.log(`\n  🚀 ClearShare Expenses API running on http://localhost:${PORT}`);
   console.log(`  📊 Health check: http://localhost:${PORT}/api/health\n`);
 });
 

@@ -1,35 +1,16 @@
-# Spreetail Shared Expenses App
+# ClearShare Shared Expenses App
 
-A full-stack web application designed to solve complex shared expenses, featuring a robust CSV anomaly detection engine.
+A full-stack application for managing shared group expenses, calculating balances, handling settlements, and importing/reviewing complex expense data from CSV files.
+
+## Features
+- **Authentication**: JWT-based user login and registration.
+- **Groups**: Create groups and add members.
+- **Expenses**: Log expenses with `equal`, `unequal`, `percentage`, and `share` split types.
+- **Balances**: Real-time balance calculations showing who owes who.
+- **Settlements**: Log direct payments between users to clear debt.
+- **CSV Import & Anomaly Detection**: Upload CSV exports from other apps. The system automatically flags 18 different types of errors/anomalies (e.g. duplicate entries, missing payers, stale members, settlement misclassifications) and presents an intuitive "Error Review Wizard" UI to fix them before importing.
 
 ## Tech Stack
-- **Frontend**: React (Vite), CSS Variables (Custom glassmorphism design system)
-- **Backend**: Node.js, Express, Axios
-- **Database**: PostgreSQL (Relational DB)
-- **Authentication**: JWT (JSON Web Tokens)
-
-## Setup Instructions
-
-### 1. Database Setup
-1. Ensure PostgreSQL 18 is installed and running.
-2. The application expects the `postgres` user password to be `ujjwal51`.
-3. In the root `backend` directory, run the initialization script to create the `spreetail_expenses` database, build the schema, and insert seed data:
-   ```bash
-   cd backend
-   node db/init.js
-   ```
-
-### 2. Backend Setup
-1. Navigate to the backend directory and install dependencies:
-   ```bash
-   cd backend
-   npm install
-   ```
-2. Start the Express server:
-   ```bash
-   npm start
-   ```
-   *The backend runs on `http://localhost:3000`*
 
 ### 3. Frontend Setup
 1. In a new terminal, navigate to the frontend directory and install dependencies:

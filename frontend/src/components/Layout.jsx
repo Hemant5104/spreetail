@@ -33,7 +33,7 @@ const Layout = () => {
               </defs>
             </svg>
           </div>
-          <div className="nav-title">Spreetail</div>
+          <div className="nav-title">ClearShare</div>
         </div>
 
         <div className="nav-links">
