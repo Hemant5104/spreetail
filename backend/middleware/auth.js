@@ -15,7 +15,10 @@ function authMiddleware(req, res, next) {
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(
+      token, 
+      process.env.JWT_SECRET || 'fallback_secret_for_free_deployments_only'
+    );
     req.user = decoded; // { id, username, display_name }
     next();
   } catch (err) {
